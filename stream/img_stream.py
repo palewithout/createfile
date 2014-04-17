@@ -9,6 +9,7 @@ class ImageStream(ReadOnlyStream):
     def __init__(self, img_path):
         super(ImageStream, self).__init__()
 
+        self.img_path = img_path
         self.img = open(img_path, 'rb')
 
     def read(self, size=ReadOnlyStream.DEFAULT_READ_BUFFER_SIZE):

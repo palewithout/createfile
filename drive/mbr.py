@@ -53,5 +53,5 @@ ClassicalMBR = Struct(k_MBR,
     # rename PartitionEntry to its plural form
     Rename(k_PartitionEntries, Array(4, PartitionEntry)),
 
-    Magic('\x55\xaa')
+    Magic(b'\x55\xaa')
 )

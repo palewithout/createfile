@@ -36,4 +36,3 @@ def get_drive_obj(stream):
 if __name__ == '__main__':
     with ImageStream('d:/edt.raw') as f:
         partitions = get_drive_obj(f)
-        print partitions.next().fat1.keys()

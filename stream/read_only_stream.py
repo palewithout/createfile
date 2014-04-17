@@ -22,7 +22,7 @@ class ReadOnlyStream(object):
         raise NotImplementedError
 
     def test(self):
-        print self.read(512).encode('hex')
+        print(self.read(512).encode('hex'))
 
     def __enter__(self):
         return self

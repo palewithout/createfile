@@ -3,6 +3,12 @@ import os
 from construct import Subconstruct, Construct
 import time
 
+MAGIC_END_SECTION = b'\x55\xaa'
+
+STATE_DOS_ENTRY = 0b01
+STATE_LFN_ENTRY = 0b10
+STATE_START = 0b11
+
 
 def time_it(f):
     def wrapper(*args, **kwargs):
@@ -10,11 +16,46 @@ def time_it(f):
         ret = f(*args, **kwargs)
         t2 = time.time()
 
-        print '"%s" time elapsed: %0.2f' % (f.__name__, (t2 - t1))
+        print('"%s" time elapsed: %0.2f' % (f.__name__, (t2 - t1)))
 
         return ret
 
     return wrapper
+
+
+class SimpleCounter(object):
+
+    __slots__ = ['counter']
+
+    def __init__(self, initial=0):
+        self.counter = initial
+
+    def inc(self, n=1):
+        self.counter += n
+
+    def dec(self, n=1):
+        self.counter -= n
+
+    def __str__(self):
+        return str(self.counter)
+
+    def __repr__(self):
+        return repr(self.counter)
+
+    def __cmp__(self, other):
+        if isinstance(other, self):
+            other = other.counter
+        return cmp(self.counter, other)
+
+    def __eq__(self, other):
+        return self.counter == other.counter
+
+    def __hash__(self):
+        return hash(self.counter)
+
+    def __int__(self):
+        return self.counter
+
 
 class HardPointer(Subconstruct):
 
@@ -71,3 +112,14 @@ class Skip(Construct):
             raise ValueError('skipping negative number of bytes')
 
         stream.seek(length, os.SEEK_CUR)
+
+
+class StateManager(object):
+    def __init__(self, init_state):
+        self._state = init_state
+
+    def transit_to(self, state):
+        self._state = state
+
+    def is_(self, state):
+        return self._state == state

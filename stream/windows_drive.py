@@ -3,10 +3,7 @@ import os
 
 from win32file import *
 from stream.read_only_stream import ReadOnlyStream
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from StringIO import StringIO
+from io import BytesIO
 
 
 class WindowsPhysicalDriveStream(ReadOnlyStream):
@@ -17,7 +14,7 @@ class WindowsPhysicalDriveStream(ReadOnlyStream):
         super(WindowsPhysicalDriveStream, self).__init__()
 
         self._dev = self._create_file(r'\\.\PhysicalDrive%s' % number)
-        self._buffer = StringIO()
+        self._buffer = BytesIO()
 
         self.default_buffer_size = default_buffer_size
 
@@ -46,7 +43,7 @@ class WindowsPhysicalDriveStream(ReadOnlyStream):
             if err:
                 raise IOError('Error reading utilizing ReadFile')
 
-            self._buffer = StringIO(_win32_read_file_buf)
+            self._buffer = BytesIO(_win32_read_file_buf)
             buf += self._buffer.read(size - buf_len)
 
         return buf
