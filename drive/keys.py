@@ -1,3 +1,4 @@
+# encoding: utf-8
 
 k_bootstrap_code = 'bootstrap_code'
 k_MBR = 'MBR'

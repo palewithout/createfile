@@ -23,7 +23,7 @@ def time_it(f):
     return wrapper
 
 
-class SimpleCounter(object):
+class SimpleCounter:
 
     __slots__ = ['counter']
 
@@ -114,7 +114,7 @@ class Skip(Construct):
         stream.seek(length, os.SEEK_CUR)
 
 
-class StateManager(object):
+class StateManager:
     def __init__(self, init_state):
         self._state = init_state
 

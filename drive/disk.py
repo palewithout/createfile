@@ -6,29 +6,29 @@ from drive.mbr import ClassicalMBR
 from stream import ImageStream
 
 
-def get_NTFS_obj(stream):
+def get_ntfs_obj(entry, stream):
     pass
 
 
-def get_ExtendedPartition_obj(stream):
+def get_extended_partition_obj(entry, stream):
     pass
 
 
 def get_drive_obj(stream):
-    classical_MBR = ClassicalMBR.parse_stream(stream)
+    mbr = ClassicalMBR.parse_stream(stream)
 
     def get_partition_obj(partition_entry, stream):
         partition_generator = {
             k_FAT32: get_fat32_obj,
-            k_NTFS:  get_NTFS_obj,
-            k_ExtendedPartition: get_ExtendedPartition_obj,
-            k_ignored: lambda _: _
+            k_NTFS:  get_ntfs_obj,
+            k_ExtendedPartition: get_extended_partition_obj,
+            k_ignored: lambda _, __: None
         }[partition_entry[k_partition_type]]
 
         return partition_generator(partition_entry, stream)
 
     partitions = (get_partition_obj(entry, stream)
-                  for entry in classical_MBR[k_PartitionEntries])
+                  for entry in mbr[k_PartitionEntries])
 
     return partitions
 

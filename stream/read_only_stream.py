@@ -2,7 +2,7 @@
 import os
 
 
-class ReadOnlyStream(object):
+class ReadOnlyStream:
 
     DEFAULT_READ_BUFFER_SIZE = 1024 * 10
 

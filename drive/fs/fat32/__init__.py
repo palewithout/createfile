@@ -2,6 +2,7 @@
 from collections import defaultdict
 import logging
 from struct import unpack
+from drive.fs import Partition
 from drive.fs.fat32.structs import *
 from misc import time_it, SimpleCounter, StateManager, STATE_START
 from mock.fat32 import memory_dump
@@ -10,7 +11,9 @@ from stream import ImageStream
 __all__ = ['get_fat32_obj']
 
 
-class FAT32(object):
+class FAT32(Partition):
+
+    type = 'FAT32'
 
     _ul_int32 = ULInt32(None)
 
@@ -38,6 +41,8 @@ class FAT32(object):
         self.setup_logger()
 
     def __init__(self, stream, preceding_bytes, read_fat2=False):
+        super(FAT32, self).__init__(FAT32.type)
+
         self.logger = None
         self.setup_logger()
 
