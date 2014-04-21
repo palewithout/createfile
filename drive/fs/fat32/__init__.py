@@ -57,7 +57,7 @@ class FAT32(Partition):
         self.logger.info('read boot sector, bytes per sector is %d, '
                          'bytes per cluster is %d',
                          self.bytes_per_sector, self.bytes_per_cluster)
-        assert self.bytes_per_sector == 512
+        # assert self.bytes_per_sector == 512
 
         self.bytes_per_fat = self.s2b(self.boot_sector[k_sectors_per_FAT])
 
