@@ -42,10 +42,10 @@ class SimpleCounter:
     def __repr__(self):
         return repr(self.counter)
 
-    def __cmp__(self, other):
+    def __lt__(self, other):
         if isinstance(other, self):
             other = other.counter
-        return cmp(self.counter, other)
+        return self.counter < other
 
     def __eq__(self, other):
         return self.counter == other.counter
