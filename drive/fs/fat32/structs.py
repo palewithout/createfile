@@ -195,8 +195,8 @@ class FAT32LongFilenameEntry:
             state_mgr.transit_to(STATE_LFN_ENTRY)
             current_obj['checksum'] = obj[k_checksum]
         else:
-            assert state_mgr.is_(STATE_LFN_ENTRY)
-            assert current_obj['checksum'] == obj[k_checksum]
+            # assert state_mgr.is_(STATE_LFN_ENTRY)
+            # assert current_obj['checksum'] == obj[k_checksum]
 
             seq_number &= 0x1f
             if seq_number == 1:
@@ -207,7 +207,11 @@ class FAT32LongFilenameEntry:
 
     @staticmethod
     def _get_entry_name(obj):
-        return ''.join(map(lambda _: str(_, encoding='utf-16'),
-                           (obj[k_name_1],
-                            obj[k_name_2],
-                            obj[k_name_3])))
+        try:
+            return ''.join(map(lambda _: str(_, encoding='utf-16'),
+                               (obj[k_name_1],
+                                obj[k_name_2],
+                                obj[k_name_3])))
+        except UnicodeDecodeError:
+            print('Unicode decode error in _get_entry_name')
+            return 'unicode decode error'
