@@ -80,7 +80,7 @@ class FAT32(Partition):
         else:
             self.fat2, self.number_of_eoc_2 = self.get_fat()
 
-        self.data_section_offset = self.stream.tell()
+        self.data_section_offset = fat_abs_pos + 2 * self.bytes_per_fat
 
         self.fdt = {}
 
