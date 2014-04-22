@@ -36,22 +36,55 @@ class WindowsPhysicalDriveStream(ReadOnlyStream):
     def _read_file(self, size=ReadOnlyStream.DEFAULT_READ_BUFFER_SIZE):
         err, _buf = ReadFile(self._dev, size)
         if err:
-            raise IOError('Error reading disk when utilizing ReadFile')
+            raise IOError('Error reading disk when utilizing ReadFile.')
 
         return _buf
 
     def seek(self, pos, whence=os.SEEK_SET):
-        if whence != os.SEEK_SET:
-            raise TypeError('Seek type not supported')
-        whence = {os.SEEK_SET: FILE_BEGIN,
-                  os.SEEK_CUR: FILE_CURRENT,
-                  os.SEEK_END: FILE_END}[whence]
+        if whence == os.SEEK_SET:
+            last_sector_pos = (pos // self.BYTES_PER_SECTOR
+                               * self.BYTES_PER_SECTOR)
+            self._set_file_pointer(last_sector_pos, whence)
+            self._buffer = BytesIO(self._read_file())
+            self._buffer.seek(pos - last_sector_pos, os.SEEK_CUR)
 
-        last_sector_pos = pos // self.BYTES_PER_SECTOR * self.BYTES_PER_SECTOR
+        elif whence == os.SEEK_CUR:
+            if pos >= 0:
+                # it's a bit complicated, and here's how this works
+                # suppose we want to seek +(2 * buf_size + 500) relatively and
+                # we have the following buffer now:
+                # |-----^----------|
+                #       |
+                #       +- self._buffer.tell()
+                # what we'd better do is add 500 and pointer of self._buffer
+                # together, thus the actual offset will be
+                # pos = +(2 * buf_size + 500 + self._buffer.tell()) relative to
+                # the start of the buffer, like this
+                # |---------^------|
+                #           |
+                #           +- pos % buf_size
+                # and then we move the pointer forwards for 2 buffers, i.e.
+                # |----------------|----------------|---------^------|
+                #                                   |         |      |
+                #                                   |         +- pos |
+                #                                   |<-self._buffer->|
+                # to achieve this, calculate how many buffers we should skip by
+                # times = pos // buf_size - 1,
+                # inter_buffer_offset = times * buf_size,
+                # then use self._set_file_pointer to set fp
+                # note that it's also possible to support negative offset, but
+                # the case is so rare that I think it's a waste of time
+                buffer_size = ReadOnlyStream.DEFAULT_READ_BUFFER_SIZE
 
-        self._set_file_pointer(last_sector_pos, whence)
-        self._buffer = BytesIO(self._read_file())
-        self._buffer.seek(pos - last_sector_pos, os.SEEK_CUR)
+                pos += self._buffer.tell()
+                inter_buffer_offset = (pos // buffer_size - 1) * buffer_size
+                intra_buffer_offset = pos % buffer_size
+
+                self._set_file_pointer(inter_buffer_offset, FILE_CURRENT)
+                self._buffer = BytesIO(self._read_file())
+                self._buffer.seek(intra_buffer_offset, os.SEEK_CUR)
+            else:
+                raise ValueError('Negative offset not supported.')
 
     def read(self, size=ReadOnlyStream.DEFAULT_READ_BUFFER_SIZE):
         buf = self._buffer.read(size)
@@ -70,3 +103,12 @@ class WindowsPhysicalDriveStream(ReadOnlyStream):
 
     def tell(self):
         return self._set_file_pointer(0, FILE_CURRENT)
+
+
+
+if __name__ == '__main__':
+    s = WindowsPhysicalDriveStream(0)
+    s.seek(2, os.SEEK_SET)
+    s.seek(ReadOnlyStream.DEFAULT_READ_BUFFER_SIZE * 2 + 520, os.SEEK_CUR)
+    import codecs
+    print(codecs.encode(s.read(), 'hex'))
