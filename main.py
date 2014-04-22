@@ -5,7 +5,7 @@ from stream import *
 
 
 if __name__ == '__main__':
-    with ImageStream('d:/edt.raw') as f:
+    with WindowsPhysicalDriveStream(2) as f:
         for partition in get_drive_obj(f):
             if partition:
                 if partition.type == FAT32.type:

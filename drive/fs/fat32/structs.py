@@ -14,14 +14,14 @@ FAT32BootSector = Struct(k_FAT32BootSector,
     ULInt8      (k_sectors_per_cluster),
     ULInt16     (k_number_of_reserved_sectors),
     ULInt8      (k_number_of_FATs),
-Skip(cons=[
-    ULInt16,
-    ULInt16
-]),
+# Skip(cons=[
+    ULInt16(None),
+    ULInt16(None),
+# ]),
     ULInt8      (k_media_descriptor),
-Skip(cons=[
-    ULInt16
-]),
+# Skip(cons=[
+    ULInt16(None),
+# ]),
     ULInt16     (k_sectors_per_track),
     ULInt16     (k_number_of_heads),
     ULInt32     (k_number_of_hidden_sectors),
@@ -33,15 +33,15 @@ Skip(cons=[
     ULInt32     (k_cluster_number_of_root_directory_start),
     ULInt16     (k_sector_number_of_FS_info_sector),
     ULInt16     (k_sector_number_of_boot_sectors_backup),
-Skip(cons=[
-    ULInt32,
-    ULInt32,
-    ULInt32,
-]),
+# Skip(cons=[
+    ULInt32(None),
+    ULInt32(None),
+    ULInt32(None),
+# ]),
     ULInt8      (k_drive_number),
-Skip(cons=[
-    ULInt8
-]),
+# Skip(cons=[
+    ULInt8(None),
+# ]),
     ULInt8      (k_extended_boot_signature),
     ULInt32     (k_volume_id),
     String      (k_volume_label, 11),
