@@ -55,7 +55,8 @@ FAT32BootSector = Struct(k_FAT32BootSector,
 
 FAT32FSInformationSector = Struct(k_ignored,
     Magic(b'\x52\x52\x61\x41'),
-    Skip(length=0x1fa),
+    # Skip(length=0x1fa),
+    String(None, 0x1fa),
     Magic(MAGIC_END_SECTION),
 
     allow_overwrite=True
@@ -72,7 +73,8 @@ class FAT32DirectoryTableEntry:
                         String(k_short_file_name, 8),
                         String(k_short_extension, 3),
                         ULInt8(k_attribute),
-                        Skip(length=1),
+                        # Skip(length=1),
+                        ULInt8(None),
                         ULInt8(k_create_time_10ms),
                         ULInt16(k_create_time),
                         ULInt16(k_create_date),
@@ -183,11 +185,13 @@ class FAT32LongFilenameEntry:
                         ULInt8(k_sequence_number),
                         String(k_name_1, 10),
                         # Const(ULInt8(k_attribute), 0xf),
-                        Skip(length=1),
+                        # Skip(length=1),
+                        ULInt8(None),
                         ULInt8(k_type),
                         ULInt8(k_checksum),
                         String(k_name_2, 12),
-                        Skip(length=2),
+                        # Skip(length=2),
+                        ULInt16(None),
                         String(k_name_3, 4))
 
     def __init__(self, raw, state_mgr, current_obj):
