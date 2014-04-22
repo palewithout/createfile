@@ -1,6 +1,6 @@
 # encoding: utf-8
 import os
-from construct import Subconstruct, Construct
+from construct import Construct
 import time
 
 MAGIC_END_SECTION = b'\x55\xaa'
@@ -55,37 +55,6 @@ class SimpleCounter:
 
     def __int__(self):
         return self.counter
-
-
-class HardPointer(Subconstruct):
-
-    __slots__ = ['offsetfunc']
-
-    def __init__(self, offsetfunc, subcon):
-        Subconstruct.__init__(self, subcon)
-        self.offsetfunc = offsetfunc
-
-    def _parse(self, stream, context):
-        pos = self.offsetfunc(context)
-        stream.seek(pos, 2 if pos < 0 else 0)
-
-        return self.subcon._parse(stream, context)
-
-    def _sizeof(self, context):
-        return 0
-
-
-class Jump(Construct):
-
-    __slots__ = ['offset_func']
-
-    def __init__(self, offset_func):
-        Construct.__init__(self, None)
-        self.offset_func = offset_func
-
-    def _parse(self, stream, context):
-        pos = self.offset_func(context)
-        stream.seek(pos, 2 if pos < 0 else 0)
 
 
 class Skip(Construct):
