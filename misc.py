@@ -10,6 +10,11 @@ STATE_LFN_ENTRY = 0b10
 STATE_START = 0b11
 
 
+def clear_cur_obj(obj):
+    obj['name'] = ''
+    obj['checksum'] = 0
+
+
 def time_it(f):
     def wrapper(*args, **kwargs):
         t1 = time.time()

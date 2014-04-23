@@ -5,7 +5,8 @@ import os
 from construct import *
 from datetime import datetime
 from drive.keys import *
-from misc import STATE_LFN_ENTRY, STATE_DOS_ENTRY, MAGIC_END_SECTION
+from misc import STATE_LFN_ENTRY, STATE_DOS_ENTRY, MAGIC_END_SECTION, \
+    clear_cur_obj
 
 FAT32BootSector = Struct(k_FAT32BootSector,
     Bytes       (k_jump_instruction, 3),
@@ -91,6 +92,9 @@ class FAT32DirectoryTableEntry:
         try:
             name, ext = self._get_names(obj, state_mgr, current_obj)
             print(dir_name, name, self.first_cluster)
+            if name == '.' or name == '..':
+                self.skip = True
+                return
         except UnicodeDecodeError:
             partition.logger.warning('%s unicode decode error', dir_name)
             self.skip = True
@@ -122,7 +126,7 @@ class FAT32DirectoryTableEntry:
     def _get_names(self, obj, state_mgr, current_obj):
         ext = ''
         if state_mgr.is_(STATE_LFN_ENTRY):
-            name = current_obj['name'][0]
+            name = current_obj['name']
             if not self.is_directory:
                 ext = name.rsplit('.')[-1] if '.' in name else ''
 
@@ -139,16 +143,19 @@ class FAT32DirectoryTableEntry:
             if not self.is_directory:
                 ext = str(obj[k_short_extension].strip(), encoding='ascii')
                 name = '.'.join((name, ext)).strip('.')
+            name = name.lower()
+            ext = ext.lower()
 
-        return name.strip().lower(), ext.strip().lower()
+        return name, ext
 
     @staticmethod
     def _get_checksum(obj):
         # TODO checksum checking is not yet implemented
-        return reduce(lambda sum_, c: ((sum_ & 1) << 7 + sum_ >> 1 + ord(c))
-                                      & 0xff,
-                      '.'.join((obj[k_short_file_name],
-                                obj[k_short_extension])),
+        return reduce(lambda sum_, c: (0x80 if sum_ & 1 else 0 +
+                                       (sum_ >> 1) +
+                                       c) & 0xff,
+                      b''.join((obj[k_short_file_name],
+                                 obj[k_short_extension])),
                       0)
 
     @staticmethod
@@ -181,8 +188,12 @@ class FAT32LongFilenameEntry:
                         ULInt16(None),
                         String(k_name_3, 4))
 
-    def __init__(self, raw, state_mgr, current_obj):
+    __slots__ = ['abort']
+
+    def __init__(self, raw, state_mgr, current_obj, partition):
         obj = self.__struct__.parse(raw)
+
+        self.abort = False
 
         seq_number = obj[k_sequence_number]
         if seq_number == 0xe5:
@@ -190,13 +201,22 @@ class FAT32LongFilenameEntry:
             state_mgr.transit_to(STATE_LFN_ENTRY)
         elif seq_number & 0x40:
             # first (logically last) LFN entry
-            assert not state_mgr.is_(STATE_LFN_ENTRY)
+            if state_mgr.is_(STATE_LFN_ENTRY):
+                partition.logger.warning('detected overwritten LFN')
+                clear_cur_obj(current_obj)
 
             state_mgr.transit_to(STATE_LFN_ENTRY)
             current_obj['checksum'] = obj[k_checksum]
         else:
-            # assert state_mgr.is_(STATE_LFN_ENTRY)
-            # assert current_obj['checksum'] == obj[k_checksum]
+            assert state_mgr.is_(STATE_LFN_ENTRY)
+            if current_obj['checksum'] != obj[k_checksum]:
+                # it's only possible that the checksum of the first entry and the
+                # checksum of current_obj are not the same, the following entry
+                # has to have the same checksum with the current_obj, there must
+                # be something wrong here in this situation, so we choose to
+                # abort immediately and consider this subdirectory corrupted
+                self.abort = True
+                return
 
             seq_number &= 0x1f
             if seq_number == 1:
@@ -208,11 +228,10 @@ class FAT32LongFilenameEntry:
     @staticmethod
     def _get_entry_name(obj):
         try:
-            return ''.join(map(lambda _: str(_.strip(b'\xff\x00'),
-                                             encoding='utf-16'),
-                               (obj[k_name_1],
-                                obj[k_name_2],
-                                obj[k_name_3])))
+            return str(b''.join((obj[k_name_1],
+                                 obj[k_name_2],
+                                 obj[k_name_3])),
+                       encoding='utf-16').split('\x00')[0]
         except UnicodeDecodeError:
             print('Unicode decode error in _get_entry_name')
             return 'unicode decode error'

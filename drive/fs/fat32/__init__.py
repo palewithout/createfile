@@ -151,7 +151,7 @@ class FAT32(Partition):
 
         def _operate(i):
             c = self._next_ul_int32()
-            _(c, i)
+            # _(c, i)
 
             head = cluster_head.pop(i, i)
 
@@ -208,7 +208,7 @@ class FAT32(Partition):
         elif 'system volume information' in dir_name:
             return {}
 
-        __blank__ = b'\x00' * 8
+        __blank__ = b'\x00'
 
         __state__ = StateManager(STATE_START)
         __cur_obj__ = {'name': '', 'checksum': 0}
@@ -224,21 +224,27 @@ class FAT32(Partition):
 
             attribute = raw[0xb]
             if attribute == 0xf:
-                FAT32LongFilenameEntry(raw,
-                                       __state__,
-                                       __cur_obj__)
+                entry = FAT32LongFilenameEntry(raw,
+                                               __state__,
+                                               __cur_obj__,
+                                               self)
+                if entry.abort:
+                    break
             else:
                 entry = FAT32DirectoryTableEntry(raw, dir_name,
                                                  __state__,
                                                  __cur_obj__,
                                                  self)
+                if attribute == 0xb:
+                    print('label: %s' % entry.full_path[1:])
+
                 if entry.skip:
                     continue
 
                 if entry.is_directory:
                     # append new directory task to tasks
                     tasks.append((entry.full_path,
-                                  self.c2b(entry.first_cluster) +\
+                                  self.c2b(entry.first_cluster - 2) +\
                                   self.data_section_offset))
                 else:
                     # regular 8.3 entry
