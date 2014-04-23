@@ -122,7 +122,7 @@ class FAT32DirectoryTableEntry:
     def _get_names(self, obj, state_mgr, current_obj):
         ext = ''
         if state_mgr.is_(STATE_LFN_ENTRY):
-            name = current_obj['name'].split('\x00')[0]
+            name = current_obj['name'][0]
             if not self.is_directory:
                 ext = name.rsplit('.')[-1] if '.' in name else ''
 
@@ -187,7 +187,7 @@ class FAT32LongFilenameEntry:
         seq_number = obj[k_sequence_number]
         if seq_number == 0xe5:
             # deleted entry
-            return
+            state_mgr.transit_to(STATE_LFN_ENTRY)
         elif seq_number & 0x40:
             # first (logically last) LFN entry
             assert not state_mgr.is_(STATE_LFN_ENTRY)
@@ -208,7 +208,8 @@ class FAT32LongFilenameEntry:
     @staticmethod
     def _get_entry_name(obj):
         try:
-            return ''.join(map(lambda _: str(_, encoding='utf-16'),
+            return ''.join(map(lambda _: str(_.strip(b'\xff\x00'),
+                                             encoding='utf-16'),
                                (obj[k_name_1],
                                 obj[k_name_2],
                                 obj[k_name_3])))
