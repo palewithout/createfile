@@ -103,12 +103,3 @@ class WindowsPhysicalDriveStream(ReadOnlyStream):
 
     def tell(self):
         return self._set_file_pointer(0, FILE_CURRENT)
-
-
-
-if __name__ == '__main__':
-    s = WindowsPhysicalDriveStream(0)
-    s.seek(2, os.SEEK_SET)
-    s.seek(ReadOnlyStream.DEFAULT_READ_BUFFER_SIZE * 2 + 520, os.SEEK_CUR)
-    import codecs
-    print(codecs.encode(s.read(), 'hex'))
