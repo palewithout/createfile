@@ -4,7 +4,7 @@ import os
 
 class ReadOnlyStream:
 
-    DEFAULT_READ_BUFFER_SIZE = 1024 * 10
+    DEFAULT_READ_BUFFER_SIZE = 1024 * 4
 
     def __init__(self):
         pass
