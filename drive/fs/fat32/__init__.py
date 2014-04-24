@@ -41,7 +41,8 @@ class FAT32(Partition):
 
         self.setup_logger()
 
-    def __init__(self, stream, preceding_bytes, read_fat2=False):
+    def __init__(self, stream, preceding_bytes,
+                 read_fat2=False):
         super(FAT32, self).__init__(FAT32.type)
 
         self.logger = None
@@ -152,7 +153,7 @@ class FAT32(Partition):
 
         def _operate(i):
             c = self._next_ul_int32()
-            # _(c, i)
+            _(c, i)
 
             head = cluster_head.pop(i, i)
 
@@ -187,13 +188,20 @@ class FAT32(Partition):
                       self.resolve_cluster_list(2))]
 
         files = {}
+        directories = {}
 
         while __tasks__:
             dir_name, cluster_list = __tasks__.pop(0)
+
+            directories[dir_name] = cluster_list
+
             if dir_name.startswith(u'\u00e5'):
                 continue
 
             files.update(self._discover(__tasks__, dir_name, cluster_list))
+
+        self.logger.info('found %s files and dirs in total', len(files) +
+                                                             len(directories))
 
         return files
 
@@ -209,9 +217,7 @@ class FAT32(Partition):
         return self.c2b(cluster - 2) + self.data_section_offset
 
     def _discover(self, tasks, dir_name, cluster_list):
-        if '\u00e5' in dir_name:
-            return {}
-        elif 'system volume information' in dir_name:
+        if 'System Volume Information' in dir_name:
             return {}
 
         __blank__ = b'\x00'
@@ -225,7 +231,13 @@ class FAT32(Partition):
                                    cluster_list,
                                    self.abs_c2b) as stream:
             while True:
-                raw = stream.read(32)
+                try:
+                    raw = stream.read(32)
+                except StopIteration:
+                    self.logger.warning('cluster list exhausted at %s',
+                                        dir_name)
+                    break
+
                 if len(raw) < 32:
                     break
                 elif raw.startswith(__blank__):
@@ -247,7 +259,7 @@ class FAT32(Partition):
                     if attribute == 0xb:
                         print('label: %s' % entry.full_path[1:])
 
-                    if entry.skip:
+                    if entry.skip or entry.is_deleted:
                         continue
 
                     if entry.is_directory:
