@@ -76,12 +76,13 @@ class FAT32DirectoryTableEntry:
                         ULInt16(k_lower_cluster),
                         ULInt32(k_file_length))
     __slots__ = ['is_directory', 'cluster_list', 'full_path', 'first_cluster',
-                 'create_time', 'modify_time', 'skip']
+                 'create_time', 'modify_time', 'skip', 'is_deleted']
 
     def __init__(self, raw, dir_name, state_mgr, current_obj, partition):
         obj = self.__struct__.parse(raw)
 
         self.skip = False
+        self.is_deleted = b'\xe5' in obj[k_short_file_name]
 
         self.is_directory = bool(obj[k_attribute] & 0x10)
 
@@ -96,7 +97,11 @@ class FAT32DirectoryTableEntry:
                 self.skip = True
                 return
         except UnicodeDecodeError:
-            partition.logger.warning('%s unicode decode error', dir_name)
+            partition.logger.warning('%s unicode decode error, '
+                                     'first cluster: %s, '
+                                     'byte address: %s',
+                                     dir_name, hex(self.first_cluster),
+                                     hex(partition.abs_c2b(self.first_cluster)))
             self.skip = True
             return
 
@@ -135,7 +140,7 @@ class FAT32DirectoryTableEntry:
 
         else:
             name = obj[k_short_file_name].strip()
-            if b'\xe5' in name:
+            if self.is_deleted:
                 name = '(deleted) ' + str(name[1:], encoding='ascii')
             else:
                 name = str(name, encoding='ascii')
@@ -188,16 +193,18 @@ class FAT32LongFilenameEntry:
                         ULInt16(None),
                         String(k_name_3, 4))
 
-    __slots__ = ['abort']
+    __slots__ = ['abort', 'is_deleted']
 
     def __init__(self, raw, state_mgr, current_obj, partition):
         obj = self.__struct__.parse(raw)
 
         self.abort = False
+        self.is_deleted = False
 
         seq_number = obj[k_sequence_number]
         if seq_number == 0xe5:
             # deleted entry
+            self.is_deleted = True
             state_mgr.transit_to(STATE_LFN_ENTRY)
         elif seq_number & 0x40:
             # first (logically last) LFN entry
@@ -208,7 +215,10 @@ class FAT32LongFilenameEntry:
             state_mgr.transit_to(STATE_LFN_ENTRY)
             current_obj['checksum'] = obj[k_checksum]
         else:
-            assert state_mgr.is_(STATE_LFN_ENTRY)
+            # assert state_mgr.is_(STATE_LFN_ENTRY)
+            if not state_mgr.is_(STATE_LFN_ENTRY):
+                partition.logger.warning('invalid LFN non-starting entry')
+
             if current_obj['checksum'] != obj[k_checksum]:
                 # it's only possible that the checksum of the first entry and the
                 # checksum of current_obj are not the same, the following entry

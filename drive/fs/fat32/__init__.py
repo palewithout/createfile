@@ -7,6 +7,7 @@ from drive.fs.fat32.structs import *
 from misc import time_it, SimpleCounter, StateManager, STATE_START
 from mock.fat32 import memory_dump
 from stream import ImageStream
+from stream.buffered_cluster_stream import BufferedClusterStream
 
 __all__ = ['get_fat32_obj']
 
@@ -126,10 +127,10 @@ class FAT32(Partition):
         get file allocation table from current stream position,
         returns the table represented in dict and number of EOCs
         """
+        _0 = self._next_ul_int32()
         _1 = self._next_ul_int32()
-        _2 = self._next_ul_int32()
-        assert _1 == self._eoc_magic
-        assert _2 == 0xffffffff
+        assert _0 == self._eoc_magic
+        assert _1 == 0xffffffff or _1 == 0xfffffff
 
         number_of_fat_items = self.bytes_per_fat // 4
 
@@ -156,6 +157,9 @@ class FAT32(Partition):
             head = cluster_head.pop(i, i)
 
             if self._is_eoc(c):
+                if not obj[head]:
+                    obj[head].append([head, head])
+
                 return
 
             cluster_list = obj[head]
@@ -177,20 +181,19 @@ class FAT32(Partition):
 
         return obj, number_of_eoc
 
-    def get_fdt(self, root_dir_name='/', abs_start_pos=0):
+    def get_fdt(self, root_dir_name='/'):
         # task := (directory_name, fdt_abs_start_byte_pos)
         __tasks__ = [(root_dir_name,
-                      abs_start_pos or self.data_section_offset)]
+                      self.resolve_cluster_list(2))]
 
         files = {}
 
         while __tasks__:
-            dir_name, pos = __tasks__.pop(0)
+            dir_name, cluster_list = __tasks__.pop(0)
             if dir_name.startswith(u'\u00e5'):
                 continue
-            self.stream.seek(pos, os.SEEK_SET)
 
-            files.update(self._discover(__tasks__, dir_name))
+            files.update(self._discover(__tasks__, dir_name, cluster_list))
 
         return files
 
@@ -202,7 +205,10 @@ class FAT32(Partition):
         else:
             return ()
 
-    def _discover(self, tasks, dir_name):
+    def abs_c2b(self, cluster):
+        return self.c2b(cluster - 2) + self.data_section_offset
+
+    def _discover(self, tasks, dir_name, cluster_list):
         if '\u00e5' in dir_name:
             return {}
         elif 'system volume information' in dir_name:
@@ -215,40 +221,42 @@ class FAT32(Partition):
 
         files = {}
 
-        while True:
-            raw = self.stream.read(32)
-            if len(raw) < 32:
-                break
-            elif raw.startswith(__blank__):
-                break
-
-            attribute = raw[0xb]
-            if attribute == 0xf:
-                entry = FAT32LongFilenameEntry(raw,
-                                               __state__,
-                                               __cur_obj__,
-                                               self)
-                if entry.abort:
+        with BufferedClusterStream(self.stream,
+                                   cluster_list,
+                                   self.abs_c2b) as stream:
+            while True:
+                raw = stream.read(32)
+                if len(raw) < 32:
                     break
-            else:
-                entry = FAT32DirectoryTableEntry(raw, dir_name,
-                                                 __state__,
-                                                 __cur_obj__,
-                                                 self)
-                if attribute == 0xb:
-                    print('label: %s' % entry.full_path[1:])
+                elif raw.startswith(__blank__):
+                    break
 
-                if entry.skip:
-                    continue
-
-                if entry.is_directory:
-                    # append new directory task to tasks
-                    tasks.append((entry.full_path,
-                                  self.c2b(entry.first_cluster - 2) +\
-                                  self.data_section_offset))
+                attribute = raw[0xb]
+                if attribute == 0xf:
+                    entry = FAT32LongFilenameEntry(raw,
+                                                   __state__,
+                                                   __cur_obj__,
+                                                   self)
+                    if entry.abort:
+                        break
                 else:
-                    # regular 8.3 entry
-                    files[entry.full_path] = entry
+                    entry = FAT32DirectoryTableEntry(raw, dir_name,
+                                                     __state__,
+                                                     __cur_obj__,
+                                                     self)
+                    if attribute == 0xb:
+                        print('label: %s' % entry.full_path[1:])
+
+                    if entry.skip:
+                        continue
+
+                    if entry.is_directory:
+                        # append new directory task to tasks
+                        tasks.append((entry.full_path,
+                                      self.fat1[entry.first_cluster]))
+                    else:
+                        # regular 8.3 entry
+                        files[entry.full_path] = entry
 
         return files
 
