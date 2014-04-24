@@ -5,8 +5,6 @@ from struct import unpack
 from drive.fs import Partition
 from drive.fs.fat32.structs import *
 from misc import time_it, SimpleCounter, StateManager, STATE_START
-from mock.fat32 import memory_dump
-from stream import ImageStream
 from stream.buffered_cluster_stream import BufferedClusterStream
 
 __all__ = ['get_fat32_obj']
@@ -17,29 +15,6 @@ class FAT32(Partition):
     type = 'FAT32'
 
     _ul_int32 = ULInt32(None)
-
-    __DEBUG_ATTR__ = ['logger', 'boot_sector', 'fat2', 'stream']
-
-    def __getstate__(self):
-        if not isinstance(self.stream, ImageStream):
-            raise TypeError('incompatible stream type')
-        d = dict(self.__dict__)
-        for attr in self.__DEBUG_ATTR__:
-            del d[attr]
-
-        d['stream_path'] = self.stream.img_path
-        d['last_pos'] = self.stream.tell()
-        return d
-
-    def __setstate__(self, d):
-        self.stream = ImageStream(d['stream_path'])
-        self.stream.seek(d['last_pos'])
-        del d['stream_path']
-        del d['last_pos']
-
-        self.__dict__.update(d)
-
-        self.setup_logger()
 
     def __init__(self, stream, preceding_bytes,
                  read_fat2=False):
@@ -85,10 +60,6 @@ class FAT32(Partition):
         self.data_section_offset = fat_abs_pos + 2 * self.bytes_per_fat
 
         self.fdt = {}
-
-    @memory_dump
-    def dump(self):
-        yield self
 
     def setup_logger(self):
         self.logger = logging.getLogger('fat32')
