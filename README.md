@@ -27,5 +27,10 @@ Install VirtualBox and use
 `VBoxManage internalcommands converttoraw path/to/your/vdi.vdi output.raw`
 
 
+Configuring the web interface
+----
+Modify the stream, address and port variable and use whatever value you like.
+
+
 Licenced under GNU GPLv3.
 
