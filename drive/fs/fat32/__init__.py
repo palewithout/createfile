@@ -7,7 +7,7 @@ from drive.fs.fat32.structs import *
 from misc import time_it, SimpleCounter, StateManager, STATE_START
 from stream.buffered_cluster_stream import BufferedClusterStream
 
-__all__ = ['get_fat32_obj']
+__all__ = ['get_fat32_obj', 'get_fat32_partition']
 
 
 class FAT32(Partition):
@@ -251,3 +251,8 @@ def get_fat32_obj(entry, stream):
     stream.seek(first_byte_addr, os.SEEK_SET)
 
     return FAT32(stream, preceding_bytes=first_byte_addr)
+
+
+
+def get_fat32_partition(stream):
+    return FAT32(stream, preceding_bytes=0)
