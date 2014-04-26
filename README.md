@@ -32,5 +32,37 @@ Configuring the web interface
 Modify the stream, address and port variable and use whatever value you like.
 
 
-Licenced under GNU GPLv3.
+Cookbook
+----
+* To use a partition image:
+```python
+from stream.img_stream import ImageStream
+from drive.fs.fat32 import get_fat32_partition
+
+with ImageStream(path_to_partition_image) as stream:
+    partition = get_fat32_partition(stream)
+    file, dirs = partition.get_fdt()
+```
+* To use a disk image:
+```python
+from stream.img_stream import ImageStream
+from drive.disk import get_drive_obj
+
+with ImageStream(path_to_disk_image) as stream:
+    for partition in get_drive_obj(f):
+        if partition:
+            if partition.type == FAT32.type:
+                files, dirs = partition.get_fdt()
+```
+
+* To use a real disk: replace `from stream.img_stream import ImageStream` to
+`from stream.windows_drive import WindowsPhysicalDriveStream` and also replace
+the parameter of the `with` statement. Make sure the argument to
+`WindowsPhyscialDriveStream` represent the hard disk you want to read.
+
+
+Licensing
+====
+
+Licenced under GNU LGPLv3.
 
