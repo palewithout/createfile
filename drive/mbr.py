@@ -31,6 +31,7 @@ PartitionEntry = Struct(k_PartitionEntry,
         0x0: k_ignored,
         0xf: k_ExtendedPartition,
         0xb: k_FAT32,
+        0xc: k_FAT32,
         0x7: k_NTFS,
     }[c[k_partition_type]]),
 
