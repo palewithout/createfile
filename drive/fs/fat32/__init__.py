@@ -124,7 +124,7 @@ class FAT32(Partition):
 
         def _operate(i):
             c = self._next_ul_int32()
-            _(c, i)
+            # _(c, i)
 
             head = cluster_head.pop(i, i)
 
@@ -147,9 +147,6 @@ class FAT32(Partition):
             cluster_head[c] = head
 
         [_operate(i) for i in range(2, number_of_fat_items)]
-
-        print()
-        print(len(cluster_head))
 
         return obj, number_of_eoc
 
@@ -180,7 +177,11 @@ class FAT32(Partition):
         fat = fat or self.fat1
 
         if first_cluster in fat:
-            return fat[first_cluster]
+            # a bit ugly, may be refactored later
+            clusters, pre_append = fat[first_cluster], []
+            if first_cluster != clusters[0][0]:
+                pre_append.append([first_cluster, first_cluster])
+            return pre_append + clusters
         else:
             return ()
 
