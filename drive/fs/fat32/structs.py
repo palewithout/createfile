@@ -5,7 +5,7 @@ import logging
 import os
 from struct import unpack
 from construct import *
-from datetime import datetime
+from datetime import datetime, timezone
 from drive.fs import Partition
 from drive.keys import *
 from misc import STATE_LFN_ENTRY, STATE_DOS_ENTRY, MAGIC_END_SECTION, \
@@ -80,7 +80,9 @@ class FAT32DirectoryTableEntry:
                         ULInt16(k_lower_cluster),
                         ULInt32(k_file_length))
     __slots__ = ['is_directory', 'cluster_list', 'full_path', 'first_cluster',
-                 'create_time', 'modify_time', 'skip', 'is_deleted']
+                 'create_time', 'create_timestamp',
+                 'modify_time', 'modify_timestamp',
+                 'skip', 'is_deleted']
 
     def __init__(self, raw, dir_name, state_mgr, current_obj, partition):
         obj = self.__struct__.parse(raw)
@@ -116,6 +118,10 @@ class FAT32DirectoryTableEntry:
         y, m_, d = self._get_date(obj[k_create_date])
         try:
             self.create_time = datetime(y, m_, d, h, m, int(s))
+            self.create_timestamp = (self.create_time.
+                                     replace(tzinfo=timezone.utc).
+                                     timestamp()
+                                     + s - int(s))
         except ValueError:
             partition.logger.warning('%s\\%s: invalid date %s, %s, %s',
                                      dir_name, name, y, m_, d)
@@ -126,6 +132,9 @@ class FAT32DirectoryTableEntry:
         y, m_, d = self._get_date(obj[k_modify_date])
         try:
             self.modify_time = datetime(y, m_, d, h, m, int(s))
+            self.modify_timestamp = (self.modify_time.
+                                     replace(tzinfo=timezone.utc).
+                                     timestamp())
         except ValueError:
             partition.logger.warning('%s\\%s: invalid date %s, %s, %s',
                                      dir_name, name, y, m_, d)
@@ -413,7 +422,7 @@ class FAT32(Partition):
         self.logger.info('found %s files and dirs in total', len(files) +
                                                              len(directories))
 
-        return files
+        return files, directories
 
     def resolve_cluster_list(self, first_cluster, fat=None):
         fat = fat or self.fat1
